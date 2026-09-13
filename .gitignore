@@ -36,6 +36,10 @@ htmlcov/
 # Local project documentation
 /shop_project/README.md
 
+# Private assets
+/assets/
+**/assets/
+
 # IDE and OS files
 .vscode/
 .idea/
