@@ -35,9 +35,21 @@
 {% if messages %}
   <div class="wrap" style="padding-top:16px;">
     {% for message in messages %}
-      <div class="site-message site-message-{{ message.tags }}" role="status" tabindex="-1">
-        {{ message }}
-      </div>
+      {% if "success" in message.tags %}
+        <div class="success-modal-overlay" id="successModal" role="dialog" aria-modal="true" aria-labelledby="successModalTitle">
+          <div class="success-modal-box">
+            <button type="button" class="success-modal-close" id="successModalClose" aria-label="Close success message">&times;</button>
+            <span class="success-modal-icon" aria-hidden="true">✓</span>
+            <h2 id="successModalTitle">Request sent successfully</h2>
+            <p>{{ message }}</p>
+            <button type="button" class="submit-btn success-modal-action" id="successModalAction">Close</button>
+          </div>
+        </div>
+      {% else %}
+        <div class="site-message site-message-{{ message.tags }}" role="status" tabindex="-1">
+          {{ message }}
+        </div>
+      {% endif %}
     {% endfor %}
   </div>
 {% endif %}
@@ -311,6 +323,57 @@
     product: document.getElementById('summaryProduct'),
     message: document.getElementById('summaryMessage')
   };
+
+  const successModal = document.getElementById('successModal');
+  const successModalClose = document.getElementById('successModalClose');
+  const successModalAction = document.getElementById('successModalAction');
+  let successModalReturnFocus;
+
+  function closeSuccessModal() {
+    if (!successModal || successModal.hidden) return;
+    successModal.hidden = true;
+    successModal.setAttribute('aria-hidden', 'true');
+    if (successModalReturnFocus && typeof successModalReturnFocus.focus === 'function') {
+      successModalReturnFocus.focus();
+    }
+  }
+
+  function openSuccessModal() {
+    if (!successModal) return;
+    successModalReturnFocus = document.querySelector('.nav-cta');
+    successModal.hidden = false;
+    successModal.removeAttribute('aria-hidden');
+    successModalClose.focus();
+  }
+
+  if (successModal) {
+    successModalClose.addEventListener('click', closeSuccessModal);
+    successModalAction.addEventListener('click', closeSuccessModal);
+    successModal.addEventListener('click', (event) => {
+      if (event.target === successModal) closeSuccessModal();
+    });
+    successModal.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeSuccessModal();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusable = successModal.querySelectorAll('button:not([disabled])');
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+    openSuccessModal();
+  }
 
   orderForm.addEventListener('submit', (event) => {
     if (orderForm.dataset.confirmed === 'true') return;

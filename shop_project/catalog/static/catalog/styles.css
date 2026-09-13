@@ -194,6 +194,29 @@ nav{
   border-radius:8px; font-size:0.9rem;
 }
 .site-message-error{ background:rgba(255,107,53,0.12); color:var(--orange); }
+.success-modal-overlay{
+  position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center;
+  padding:24px; background:rgba(11,12,14,0.85);
+}
+.success-modal-overlay[hidden]{ display:none; }
+.success-modal-box{
+  position:relative; width:min(460px, 100%); padding:40px 32px 32px; text-align:center;
+  background:var(--bg-card); border:1px solid rgba(1,217,196,0.45); border-radius:12px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.35);
+}
+.success-modal-icon{
+  display:flex; width:52px; height:52px; margin:0 auto 18px; align-items:center; justify-content:center;
+  border-radius:50%; background:rgba(1,217,196,0.14); color:var(--cyan);
+  font-size:1.7rem; font-weight:700;
+}
+.success-modal-box h2{ font-size:1.55rem; margin-bottom:10px; }
+.success-modal-box p{ color:var(--text-muted); margin-bottom:24px; }
+.success-modal-close{
+  position:absolute; top:14px; right:14px; padding:4px 8px; background:none; border:none;
+  color:var(--text-muted); font-size:1.5rem; line-height:1; cursor:pointer;
+}
+.success-modal-close:hover{ color:var(--text); }
+.success-modal-action{ min-width:140px; margin-top:0; }
 form{
   background:var(--bg-card); border:1px solid var(--line); border-radius:12px;
   padding:32px; text-align:left; display:flex; flex-direction:column; gap:16px;
