@@ -1,0 +1,324 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shop Name — 3D Printing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'catalog/styles.css' %}">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<header>
+  <nav>
+    <div class="logo">Shop <span>Name</span></div>
+    <div class="nav-links">
+      <a href="#catalog">Catalog</a>
+      <a href="#about">About</a>
+      <a href="#contact">Contact</a>
+    </div>
+    <a href="#contact" class="nav-cta">Get a quote</a>
+  </nav>
+</header>
+
+{% if messages %}
+  <div class="wrap" style="padding-top:16px;">
+    {% for message in messages %}
+      <div style="background:rgba(1,217,196,0.12); color:var(--cyan); padding:12px 16px; border-radius:8px; font-size:0.9rem;">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<section class="hero">
+  <div>
+    <span class="eyebrow mono">3D printing · made by hand, layer by layer</span>
+    <h1>Original designs,<br>printed <em>with precision</em>.</h1>
+    <p>Original models you can download and print at home, or finished pieces printed and shipped ready to use. Pick what works for you.</p>
+    <div class="hero-actions">
+      <a href="#catalog" class="btn btn-primary">View catalog</a>
+      <a href="#contact" class="btn btn-ghost">Request a custom piece</a>
+    </div>
+  </div>
+
+  <div class="build-panel">
+    <div class="build-readout mono">
+      <span>file: <b>benchy.gcode</b></span>
+      <span>layer height: <b>0.2mm</b></span>
+    </div>
+    <div class="build-stage">
+      <div class="scene" id="benchyScene"></div>
+    </div>
+    <div class="build-caption mono">building — <span id="buildPercent">0%</span> complete</div>
+  </div>
+</section>
+
+<section class="section catalog" id="catalog">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="tag mono">Catalog</span>
+      <h2>Pick the format you need</h2>
+      <p>Every piece shows whether it's a download or a printed item you'll receive — no surprises when you order. Click any card for more photos.</p>
+    </div>
+
+    <div class="grid">
+      {% for product in products %}
+      <div class="card"
+           data-name="{{ product.name }}"
+           data-description="{{ product.description|default:product.short_description }}"
+           data-images="{% for img in product.images.all %}{{ img.image.url }}{% if not forloop.last %},{% endif %}{% endfor %}">
+        <div class="card-thumb">
+          {% with first_image=product.images.first %}
+            {% if first_image %}
+              <img src="{{ first_image.image.url }}" alt="{{ product.name }}" style="width:100%; height:100%; object-fit:cover;">
+            {% else %}
+              <svg viewBox="0 0 24 24" fill="none" stroke="#01d9c4" stroke-width="1.5"><path d="M12 2v20M4 7l8-5 8 5M4 17l8 5 8-5M4 7v10M20 7v10"/></svg>
+            {% endif %}
+          {% endwith %}
+        </div>
+        <div class="card-body">
+          {% if product.category == "digital" %}
+            <span class="badge badge-digital">Digital file</span>
+          {% else %}
+            <span class="badge badge-physical">Printed item</span>
+          {% endif %}
+          <h3>{{ product.name }}</h3>
+          <div class="card-specs">
+            {% if product.category == "digital" %}
+              {% if product.print_time %}<span>Print time: {{ product.print_time }}</span>{% endif %}
+              {% if product.weight %}<span>Weight: {{ product.weight }}</span>{% endif %}
+            {% else %}
+              {% if product.material %}<span>Material: {{ product.material }}</span>{% endif %}
+              {% if product.lead_time %}<span>Lead time: {{ product.lead_time }}</span>{% endif %}
+            {% endif %}
+          </div>
+          <div class="card-footer">
+            <span class="price">{{ product.display_price }}</span>
+            {% if product.category == "digital" %}
+              <a href="#contact" class="card-btn">Download</a>
+            {% else %}
+              <a href="#contact" class="card-btn">Order</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <p style="color:var(--text-muted);">No products yet — add some from the admin panel.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section" id="about">
+  <div class="wrap about">
+    <div class="about-visual">
+      <svg viewBox="0 0 200 200" fill="none" stroke="#01d9c4" stroke-width="1.2">
+        <ellipse cx="100" cy="170" rx="70" ry="12" stroke-opacity="0.4"/>
+        <path d="M50 170 Q50 60 100 40 Q150 60 150 170" />
+        <path d="M60 150 Q60 70 100 55 Q140 70 140 150" stroke-opacity="0.5"/>
+        <path d="M70 130 Q70 85 100 75 Q130 85 130 130" stroke-opacity="0.3"/>
+      </svg>
+    </div>
+    <div class="about-text">
+      <span class="tag mono" style="color:var(--orange)">About</span>
+      <h2>Every piece starts as a design from scratch</h2>
+      <p>This is a space dedicated to design and 3D printing — from everyday useful objects to more decorative pieces. Every model is designed from the ground up, tested, and fine-tuned to print well on any home printer.</p>
+      <p>Prefer not to print at home? Order the piece already finished, in a choice of colors and materials.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section contact" id="contact">
+  <div class="contact-inner">
+    <span class="tag mono" style="color:var(--orange)">Contact</span>
+    <h2>Request a quote or place an order</h2>
+    <p>Fill in the details below — the reply comes by email or WhatsApp, whichever you prefer.</p>
+
+    <form method="post" action="{% url 'submit_contact' %}">
+      {% csrf_token %}
+      <div class="form-row">
+        <div>
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" autocomplete="name" required>
+        </div>
+        <div>
+          <label for="contact-input">Email or WhatsApp</label>
+          <input type="text" id="contact-input" name="contact_info" autocomplete="email" required>
+        </div>
+      </div>
+      <div>
+        <label for="product">Item of interest</label>
+        <input type="text" id="product" name="product" placeholder="E.g. geometric vase, or describe what you need">
+      </div>
+      <div>
+        <label for="message">Message</label>
+        <textarea id="message" name="message" placeholder="Color, size, deadline, or any detail that matters"></textarea>
+      </div>
+      <button type="submit" class="submit-btn">Send request</button>
+      <p class="form-note">This sends your request straight to the shop — you'll get a reply by email or WhatsApp.</p>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap mono">Shop Name · 3D Printing · made in Portugal</div>
+</footer>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <button class="modal-close" id="modalClose">&times;</button>
+    <h3 class="modal-title" id="modalTitle"></h3>
+    <img class="modal-main-img" id="modalMainImg" alt="">
+    <div class="modal-thumbs" id="modalThumbs"></div>
+  </div>
+</div>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+  const container = document.getElementById('benchyScene');
+  const percentEl = document.getElementById('buildPercent');
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 1000);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.localClippingEnabled = true;
+  container.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0x557a75, 1.0));
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+  keyLight.position.set(3, 5, 4);
+  scene.add(keyLight);
+  const rimLight = new THREE.DirectionalLight(0x01d9c4, 0.6);
+  rimLight.position.set(-4, 2, -3);
+  scene.add(rimLight);
+
+  const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+  const rig = new THREE.Group();
+  scene.add(rig);
+
+  let boatHeight = 1;
+  let modelReady = false;
+
+  function resize(){
+    const w = container.clientWidth || 220;
+    const h = container.clientHeight || 260;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  new STLLoader().load(
+    'https://raw.githubusercontent.com/CreativeTools/3DBenchy/master/Single-part/3DBenchy.stl',
+    (geometry) => {
+      geometry.rotateX(-Math.PI / 2);
+      geometry.computeBoundingBox();
+      let box = geometry.boundingBox;
+      geometry.translate(
+        -(box.max.x + box.min.x) / 2,
+        -box.min.y,
+        -(box.max.z + box.min.z) / 2
+      );
+
+      geometry.computeBoundingBox();
+      const rawHeight = geometry.boundingBox.max.y - geometry.boundingBox.min.y;
+      const scale = 2.2 / rawHeight;
+      geometry.scale(scale, scale, scale);
+      geometry.computeBoundingBox();
+      boatHeight = geometry.boundingBox.max.y - geometry.boundingBox.min.y;
+
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x2ecc71,
+        roughness: 0.35,
+        metalness: 0.05,
+        clippingPlanes: [clipPlane],
+        side: THREE.DoubleSide
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      rig.add(mesh);
+
+      camera.position.set(0, boatHeight * 0.55, boatHeight * 2.6);
+      camera.lookAt(0, boatHeight * 0.4, 0);
+
+      modelReady = true;
+    },
+    undefined,
+    (error) => console.error('Failed to load Benchy model:', error)
+  );
+
+  const DURATION = 10000;
+  const start = performance.now();
+
+  function animate(now){
+    if (modelReady){
+      const elapsed = (now - start) % DURATION;
+      const t = elapsed / DURATION;
+      const buildT = t < 0.85 ? t / 0.85 : 1;
+
+      clipPlane.constant = boatHeight * buildT;
+      if (percentEl) percentEl.textContent = Math.round(buildT * 100) + '%';
+
+      rig.rotation.y = (now - start) / 4500;
+    }
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
+</script>
+
+<script>
+  const overlay = document.getElementById('modalOverlay');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalMainImg = document.getElementById('modalMainImg');
+  const modalThumbs = document.getElementById('modalThumbs');
+
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.card-btn')) return;
+      const name = card.dataset.name;
+      const images = (card.dataset.images || '').split(',').map(s => s.trim()).filter(Boolean);
+      if (!name || images.length === 0) return;
+
+      modalTitle.textContent = name;
+      modalMainImg.src = images[0];
+      modalThumbs.innerHTML = '';
+      images.forEach((src, i) => {
+        const thumb = document.createElement('img');
+        thumb.src = src;
+        if (i === 0) thumb.classList.add('active');
+        thumb.addEventListener('click', () => {
+          modalMainImg.src = src;
+          modalThumbs.querySelectorAll('img').forEach(t => t.classList.remove('active'));
+          thumb.classList.add('active');
+        });
+        modalThumbs.appendChild(thumb);
+      });
+      overlay.classList.add('open');
+    });
+  });
+
+  function closeModal(){ overlay.classList.remove('open'); }
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+</script>
+
+</body>
+</html>
