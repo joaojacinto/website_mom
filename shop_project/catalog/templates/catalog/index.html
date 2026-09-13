@@ -35,7 +35,7 @@
 {% if messages %}
   <div class="wrap" style="padding-top:16px;">
     {% for message in messages %}
-      <div style="background:rgba(1,217,196,0.12); color:var(--cyan); padding:12px 16px; border-radius:8px; font-size:0.9rem;">
+      <div class="site-message site-message-{{ message.tags }}" role="status" tabindex="-1">
         {{ message }}
       </div>
     {% endfor %}
@@ -146,7 +146,7 @@
     <h2>Request a quote or place an order</h2>
     <p>Fill in the details below — the reply comes by email or WhatsApp, whichever you prefer.</p>
 
-    <form method="post" action="{% url 'submit_contact' %}">
+    <form id="orderForm" method="post" action="{% url 'submit_contact' %}">
       {% csrf_token %}
       <div class="form-row">
         <div>
@@ -168,6 +168,21 @@
       </div>
       <button type="submit" class="submit-btn">Send request</button>
       <p class="form-note">This sends your request straight to the shop — you'll get a reply by email or WhatsApp.</p>
+
+      <section class="quote-confirmation" id="quoteConfirmation" hidden aria-labelledby="quoteConfirmationTitle">
+        <h3 id="quoteConfirmationTitle" tabindex="-1">Confirm your request</h3>
+        <p>Check the details below before sending. You can go back and edit them.</p>
+        <dl class="quote-summary">
+          <div><dt>Name</dt><dd id="summaryName"></dd></div>
+          <div><dt>Email or WhatsApp</dt><dd id="summaryContact"></dd></div>
+          <div><dt>Item of interest</dt><dd id="summaryProduct"></dd></div>
+          <div><dt>Message</dt><dd id="summaryMessage"></dd></div>
+        </dl>
+        <div class="quote-confirmation-actions">
+          <button type="button" class="btn btn-ghost" id="editQuote">Edit details</button>
+          <button type="button" class="submit-btn" id="confirmQuote">Confirm and send</button>
+        </div>
+      </section>
     </form>
   </div>
 </section>
@@ -284,6 +299,47 @@
 </script>
 
 <script>
+  const orderForm = document.getElementById('orderForm');
+  const quoteConfirmation = document.getElementById('quoteConfirmation');
+  const confirmationTitle = document.getElementById('quoteConfirmationTitle');
+  const editQuote = document.getElementById('editQuote');
+  const confirmQuote = document.getElementById('confirmQuote');
+
+  const summaryFields = {
+    name: document.getElementById('summaryName'),
+    contact: document.getElementById('summaryContact'),
+    product: document.getElementById('summaryProduct'),
+    message: document.getElementById('summaryMessage')
+  };
+
+  orderForm.addEventListener('submit', (event) => {
+    if (orderForm.dataset.confirmed === 'true') return;
+
+    event.preventDefault();
+    if (!orderForm.reportValidity()) return;
+
+    summaryFields.name.textContent = document.getElementById('name').value.trim();
+    summaryFields.contact.textContent = document.getElementById('contact-input').value.trim();
+    summaryFields.product.textContent = document.getElementById('product').value.trim() || '—';
+    summaryFields.message.textContent = document.getElementById('message').value.trim() || '—';
+    quoteConfirmation.hidden = false;
+    confirmationTitle.focus();
+  });
+
+  editQuote.addEventListener('click', () => {
+    quoteConfirmation.hidden = true;
+    document.getElementById('name').focus();
+  });
+
+  confirmQuote.addEventListener('click', () => {
+    orderForm.dataset.confirmed = 'true';
+    confirmQuote.disabled = true;
+    confirmQuote.textContent = 'Sending…';
+    HTMLFormElement.prototype.submit.call(orderForm);
+  });
+
+  document.querySelectorAll('.site-message').forEach((message) => message.focus());
+
   const overlay = document.getElementById('modalOverlay');
   const modalTitle = document.getElementById('modalTitle');
   const modalMainImg = document.getElementById('modalMainImg');
