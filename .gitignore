@@ -33,6 +33,9 @@ build/
 .coverage
 htmlcov/
 
+# Local project documentation
+/shop_project/README.md
+
 # IDE and OS files
 .vscode/
 .idea/
