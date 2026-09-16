@@ -34,3 +34,12 @@ about orders, quotes, or custom work.
 The Django application is located in `shop_project/`. The root
 `index.html` and `styles.css` contain the original static interface, while the
 integrated catalogue is implemented in `shop_project/catalog/`.
+
+## Render deployment
+
+Use the following Render build command so dependencies are installed, the
+database migrations run, and static files are collected for WhiteNoise:
+
+```text
+pip install -r shop_project/requirements.txt && python shop_project/manage.py migrate && python shop_project/manage.py collectstatic --noinput
+```
