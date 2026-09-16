@@ -1,15 +1,59 @@
+import os
 from pathlib import Path
+from urllib.parse import urlparse
+
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ⚠️ Antes de publicares o site a sério, troca esta chave por uma nova e
-# define DEBUG = False. Podes gerar uma chave nova em:
-# https://djecrety.ir/
-SECRET_KEY = "django-insecure-troca-esta-chave-antes-de-publicar"
 
-DEBUG = True
+def _parse_bool(value, default):
+    if value is None:
+        return default
 
-ALLOWED_HOSTS = ["*"]  # em produção, troca por ["oteudominio.pt"]
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"Invalid boolean value: {value!r}")
+
+
+def _parse_csv(value, default):
+    if value is None:
+        return default
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _parse_csrf_origins(value):
+    origins = _parse_csv(value, [])
+    for origin in origins:
+        parsed = urlparse(origin)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError(
+                "DJANGO_CSRF_TRUSTED_ORIGINS must contain complete URLs "
+                "(for example, https://example.com)"
+            )
+    return origins
+
+
+DEBUG = _parse_bool(os.getenv("DJANGO_DEBUG"), True)
+
+configured_secret_key = os.getenv("DJANGO_SECRET_KEY")
+if configured_secret_key and configured_secret_key.strip():
+    SECRET_KEY = configured_secret_key
+else:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-local-development-only"
+    else:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is False."
+        )
+
+ALLOWED_HOSTS = _parse_csv(os.getenv("DJANGO_ALLOWED_HOSTS"), ["*"])
+CSRF_TRUSTED_ORIGINS = _parse_csrf_origins(
+    os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS")
+)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
