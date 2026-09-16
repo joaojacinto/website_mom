@@ -35,6 +35,7 @@ htmlcov/
 
 # Local project documentation
 /shop_project/README.md
+/shop_project/DEPLOYMENT_POSTGRESQL.md
 
 # Private assets
 /assets/

@@ -1,6 +1,26 @@
+from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
 
+from shop_project.settings import _database_config
+
 from .models import ContactRequest
+
+
+class DatabaseConfigurationTests(TestCase):
+    def test_missing_database_url_uses_sqlite(self):
+        config = _database_config(None)
+
+        self.assertEqual(config["ENGINE"], "django.db.backends.sqlite3")
+
+    def test_postgresql_database_url_uses_postgresql_backend(self):
+        config = _database_config("postgresql:///catalog_test")
+
+        self.assertEqual(config["ENGINE"], "django.db.backends.postgresql")
+        self.assertEqual(config["NAME"], "catalog_test")
+
+    def test_invalid_database_url_fails_explicitly(self):
+        with self.assertRaises(ImproperlyConfigured):
+            _database_config("not-a-database-url")
 
 
 class SubmitContactTests(TestCase):

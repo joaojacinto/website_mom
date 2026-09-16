@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -96,12 +97,22 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "shop_project.wsgi.application"
 
-DATABASES = {
-    "default": {
+def _database_config(database_url):
+    if database_url and database_url.strip():
+        try:
+            return dj_database_url.parse(database_url.strip(), conn_max_age=600)
+        except (TypeError, ValueError) as exc:
+            raise ImproperlyConfigured(
+                "DATABASE_URL must be a valid PostgreSQL connection URL."
+            ) from exc
+
+    return {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
     }
-}
+
+
+DATABASES = {"default": _database_config(os.getenv("DATABASE_URL"))}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

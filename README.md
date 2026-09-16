@@ -24,7 +24,8 @@ about orders, quotes, or custom work.
 
 - **Python** and **Django 5** for the web application, routing, data models,
   catalogue, contact handling, and administration.
-- **SQLite** for the application database.
+- **PostgreSQL** in production on Render, selected through `DATABASE_URL`.
+  SQLite remains the local-development default when `DATABASE_URL` is absent.
 - **Pillow** for product image support.
 - **HTML**, **CSS**, and **JavaScript** for the user interface and
   interactions.
@@ -43,3 +44,14 @@ database migrations run, and static files are collected for WhiteNoise:
 ```text
 pip install -r shop_project/requirements.txt && python shop_project/manage.py migrate && python shop_project/manage.py collectstatic --noinput
 ```
+
+Use this start command:
+
+```text
+gunicorn --chdir shop_project shop_project.wsgi:application
+```
+
+Set `DATABASE_URL` to the internal PostgreSQL URL provided by Render. Also set
+`DJANGO_SECRET_KEY`, `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS`, and
+`DJANGO_CSRF_TRUSTED_ORIGINS` for production. If `DATABASE_URL` is not set,
+the project intentionally uses local SQLite instead of attempting PostgreSQL.
