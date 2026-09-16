@@ -1,4 +1,11 @@
+import os
+from io import StringIO
+from unittest.mock import patch
+
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase
 
 from shop_project.settings import _database_config
@@ -21,6 +28,66 @@ class DatabaseConfigurationTests(TestCase):
     def test_invalid_database_url_fails_explicitly(self):
         with self.assertRaises(ImproperlyConfigured):
             _database_config("not-a-database-url")
+
+
+class EnsureAdminCommandTests(TestCase):
+    def test_missing_environment_variables_make_no_changes(self):
+        with patch.dict(os.environ, {}, clear=True):
+            call_command("ensure_admin")
+
+        self.assertFalse(get_user_model().objects.exists())
+
+    def test_command_creates_superuser_without_exposing_password(self):
+        with self._environment(
+            DJANGO_ADMIN_USERNAME="admin",
+            DJANGO_ADMIN_EMAIL="admin@example.com",
+            DJANGO_ADMIN_PASSWORD="temporary-secret",
+        ):
+            output = StringIO()
+            call_command("ensure_admin", stdout=output)
+
+        user = get_user_model().objects.get(username="admin")
+        self.assertEqual(user.email, "admin@example.com")
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.check_password("temporary-secret"))
+        self.assertNotIn("temporary-secret", output.getvalue())
+
+    def test_command_updates_existing_user_idempotently(self):
+        user = get_user_model().objects.create_user(
+            username="admin",
+            email="old@example.com",
+            password="old-secret",
+        )
+
+        with self._environment(
+            DJANGO_ADMIN_USERNAME="admin",
+            DJANGO_ADMIN_EMAIL="new@example.com",
+            DJANGO_ADMIN_PASSWORD="new-secret",
+        ):
+            call_command("ensure_admin")
+
+        user.refresh_from_db()
+        self.assertEqual(get_user_model().objects.filter(username="admin").count(), 1)
+        self.assertEqual(user.email, "new@example.com")
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.check_password("new-secret"))
+
+    def test_empty_password_fails_without_creating_user(self):
+        with self._environment(
+            DJANGO_ADMIN_USERNAME="admin",
+            DJANGO_ADMIN_EMAIL="admin@example.com",
+            DJANGO_ADMIN_PASSWORD="   ",
+        ):
+            with self.assertRaises(CommandError):
+                call_command("ensure_admin")
+
+        self.assertFalse(get_user_model().objects.exists())
+
+    @staticmethod
+    def _environment(**values):
+        return patch.dict(os.environ, values, clear=True)
 
 
 class SubmitContactTests(TestCase):

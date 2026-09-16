@@ -38,12 +38,38 @@ integrated catalogue is implemented in `shop_project/catalog/`.
 
 ## Render deployment
 
-Use the following Render build command so dependencies are installed, the
-database migrations run, and static files are collected for WhiteNoise:
+For the normal deployment, use the following Render build command so
+dependencies are installed, the database migrations run, and static files are
+collected for WhiteNoise:
 
 ```text
 pip install -r shop_project/requirements.txt && python shop_project/manage.py migrate && python shop_project/manage.py collectstatic --noinput
 ```
+
+### Temporary first-admin setup
+
+Render Free does not provide an interactive Shell. To create the first Django
+administrator, temporarily add these three environment variables to the Web
+Service:
+
+- `DJANGO_ADMIN_USERNAME`
+- `DJANGO_ADMIN_EMAIL`
+- `DJANGO_ADMIN_PASSWORD`
+
+Use a strong, temporary password and do not commit it to the repository. While
+those variables are present, temporarily change the Render build command to:
+
+```text
+pip install -r shop_project/requirements.txt && python shop_project/manage.py migrate && python shop_project/manage.py ensure_admin && python shop_project/manage.py collectstatic --noinput
+```
+
+After the deploy finishes, sign in to `/admin/` with the configured username
+and password and change the password immediately. Then remove all three
+`DJANGO_ADMIN_*` variables from Render and restore the normal build command
+above. The command is safe to run repeatedly and makes no changes when the
+variables are absent, but remove `shop_project/catalog/management/commands/ensure_admin.py`
+and its package files from the repository after the first successful login if
+this temporary mechanism is no longer needed.
 
 Use this start command:
 
