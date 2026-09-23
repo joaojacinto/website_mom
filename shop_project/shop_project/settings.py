@@ -63,6 +63,9 @@ def _cloudinary_storage_config(environ=None):
         "CLOUD_NAME": values["CLOUDINARY_CLOUD_NAME"],
         "API_KEY": values["CLOUDINARY_API_KEY"],
         "API_SECRET": values["CLOUDINARY_API_SECRET"],
+        # MediaCloudinaryStorage uses PREFIX as a public-id prefix. An
+        # absolute MEDIA_URL would be treated as part of the public id.
+        "PREFIX": "",
     }
 
 
@@ -174,10 +177,9 @@ if CLOUDINARY_STORAGE:
     STORAGES["default"] = {
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
     }
-    MEDIA_URL = (
-        f"https://res.cloudinary.com/{CLOUDINARY_STORAGE['CLOUD_NAME']}/"
-        "image/upload/"
-    )
+    # MediaCloudinaryStorage generates the complete Cloudinary URL itself.
+    # Keep MEDIA_URL empty so the storage does not prepend it to public ids.
+    MEDIA_URL = ""
 else:
     STORAGES["default"] = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",

@@ -1,8 +1,10 @@
+import importlib
 import os
 from io import StringIO
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -10,7 +12,7 @@ from django.test import TestCase
 
 from shop_project.settings import _cloudinary_storage_config, _database_config
 
-from .models import ContactRequest
+from .models import ContactRequest, ProductImage
 
 
 class DatabaseConfigurationTests(TestCase):
@@ -49,12 +51,50 @@ class CloudinaryConfigurationTests(TestCase):
                 "CLOUD_NAME": "test-cloud",
                 "API_KEY": "test-key",
                 "API_SECRET": "test-secret",
+                "PREFIX": "",
             },
         )
 
     def test_partial_credentials_fail_explicitly(self):
         with self.assertRaises(ImproperlyConfigured):
             _cloudinary_storage_config({"CLOUDINARY_CLOUD_NAME": "test-cloud"})
+
+    def test_image_field_url_does_not_prefix_complete_cloudinary_url(self):
+        original_storage = settings.CLOUDINARY_STORAGE
+        original_media_url = settings.MEDIA_URL
+        settings.CLOUDINARY_STORAGE = {
+            "CLOUD_NAME": "test-cloud",
+            "API_KEY": "test-key",
+            "API_SECRET": "test-secret",
+            "PREFIX": "",
+        }
+        settings.MEDIA_URL = ""
+        try:
+            storage_module = importlib.import_module("cloudinary_storage.storage")
+            storage = storage_module.MediaCloudinaryStorage()
+            field = ProductImage._meta.get_field("image")
+            expected_url = (
+                "https://res.cloudinary.com/test-cloud/image/upload/"
+                "product_images/vase.jpg"
+            )
+            resource = type("Resource", (), {"url": expected_url})()
+            with patch.object(
+                storage_module.cloudinary,
+                "CloudinaryResource",
+                return_value=resource,
+            ):
+                with patch.object(field, "storage", storage):
+                    image = field.attr_class(
+                        None,
+                        field,
+                        "product_images/vase.jpg",
+                    )
+
+                    self.assertEqual(image.url, expected_url)
+                    self.assertNotIn("/image/upload/https://", image.url)
+        finally:
+            settings.CLOUDINARY_STORAGE = original_storage
+            settings.MEDIA_URL = original_media_url
 
 
 class EnsureAdminCommandTests(TestCase):
