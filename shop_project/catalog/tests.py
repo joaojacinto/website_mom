@@ -13,7 +13,7 @@ from shop_project.settings import (
     _email_config,
 )
 
-from .email_backends import ResendEmailBackend, ResendEmailError
+from .email_backends import BrevoEmailBackend, BrevoEmailError
 from .models import ContactRequest, ProductImage
 
 
@@ -113,11 +113,11 @@ class EmailConfigurationTests(TestCase):
             },
         )
 
-    def test_resend_api_key_enables_resend_backend(self):
+    def test_brevo_api_key_enables_brevo_backend(self):
         config = _email_config(
             {
-                "RESEND_API_KEY": "re_test_key",
-                "RESEND_FROM_EMAIL": "Website <admin@example.com>",
+                "BREVO_API_KEY": "xkeysib-test-key",
+                "BREVO_FROM_EMAIL": "Website <admin@example.com>",
                 "EMAIL_TIMEOUT": "15",
             }
         )
@@ -125,33 +125,33 @@ class EmailConfigurationTests(TestCase):
         self.assertEqual(
             config,
             {
-                "EMAIL_BACKEND": "catalog.email_backends.ResendEmailBackend",
-                "RESEND_API_KEY": "re_test_key",
+                "EMAIL_BACKEND": "catalog.email_backends.BrevoEmailBackend",
+                "BREVO_API_KEY": "xkeysib-test-key",
                 "DEFAULT_FROM_EMAIL": "Website <admin@example.com>",
                 "EMAIL_TIMEOUT": 15,
             },
         )
 
-    def test_resend_from_email_takes_precedence_over_default_from_email(self):
+    def test_brevo_from_email_takes_precedence_over_default_from_email(self):
         config = _email_config(
             {
-                "RESEND_API_KEY": "re_test_key",
-                "RESEND_FROM_EMAIL": "resend@example.com",
+                "BREVO_API_KEY": "xkeysib-test-key",
+                "BREVO_FROM_EMAIL": "brevo@example.com",
                 "DEFAULT_FROM_EMAIL": "default@example.com",
             }
         )
 
-        self.assertEqual(config["DEFAULT_FROM_EMAIL"], "resend@example.com")
+        self.assertEqual(config["DEFAULT_FROM_EMAIL"], "brevo@example.com")
 
 
 @override_settings(
-    RESEND_API_KEY="re_test_key",
+    BREVO_API_KEY="xkeysib-test-key",
     DEFAULT_FROM_EMAIL="verified@example.com",
     EMAIL_TIMEOUT=15,
 )
-class ResendEmailBackendTests(TestCase):
+class BrevoEmailBackendTests(TestCase):
     @patch("catalog.email_backends.requests.post")
-    def test_email_message_is_sent_as_resend_payload(self, post):
+    def test_email_message_is_sent_as_brevo_payload(self, post):
         post.return_value.status_code = 200
         message = EmailMultiAlternatives(
             "Reset subject",
@@ -161,21 +161,21 @@ class ResendEmailBackendTests(TestCase):
         )
         message.attach_alternative("<p>Reset body</p>", "text/html")
 
-        sent = ResendEmailBackend().send_messages([message])
+        sent = BrevoEmailBackend().send_messages([message])
 
         self.assertEqual(sent, 1)
         post.assert_called_once_with(
-            "https://api.resend.com/emails",
+            "https://api.brevo.com/v3/smtp/email",
             headers={
-                "Authorization": "Bearer re_test_key",
+                "api-key": "xkeysib-test-key",
                 "Content-Type": "application/json",
             },
             json={
-                "from": "verified@example.com",
-                "to": ["admin@example.com"],
+                "sender": {"email": "verified@example.com"},
+                "to": [{"email": "admin@example.com"}],
                 "subject": "Reset subject",
-                "text": "Reset body",
-                "html": "<p>Reset body</p>",
+                "textContent": "Reset body",
+                "htmlContent": "<p>Reset body</p>",
             },
             timeout=15,
         )
@@ -187,10 +187,10 @@ class ResendEmailBackendTests(TestCase):
             "Reset subject", "Reset body", to=["admin@example.com"]
         )
 
-        with self.assertRaisesRegex(ResendEmailError, "HTTP 401") as raised:
-            ResendEmailBackend().send_messages([message])
+        with self.assertRaisesRegex(BrevoEmailError, "HTTP 401") as raised:
+            BrevoEmailBackend().send_messages([message])
 
-        self.assertNotIn("re_test_key", str(raised.exception))
+        self.assertNotIn("xkeysib-test-key", str(raised.exception))
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
@@ -201,10 +201,11 @@ class PasswordResetTests(TestCase):
         self.user = get_user_model().objects.create_user(
             username="admin",
             email="admin@example.com",
-            password="Old-password-123",
             is_staff=True,
             is_superuser=True,
         )
+        self.user.set_password("admin-password-123")
+        self.user.save()
 
     def test_password_reset_pages_are_available(self):
         for path in (
@@ -277,7 +278,10 @@ class SubmitContactTests(TestCase):
         self.assertRedirects(response, "/#contact")
         self.assertEqual(ContactRequest.objects.count(), 1)
         self.assertTrue(
-            any("Pedido enviado" in message.message for message in response.wsgi_request._messages)
+            any(
+                "Pedido enviado" in message.message
+                for message in response.wsgi_request._messages
+            )
         )
 
     def test_success_message_renders_as_modal_after_redirect(self):

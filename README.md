@@ -45,7 +45,7 @@ Use this Build Command for the Render web service:
 pip install -r shop_project/requirements.txt && python shop_project/manage.py migrate && python shop_project/manage.py collectstatic --noinput
 ```
 
-### Admin password recovery with Resend
+### Admin password recovery with Brevo
 
 The reset flow is available at `/accounts/password_reset/` and is also linked
 from the Django admin login. Without an API key, local development uses
@@ -54,17 +54,16 @@ environment variables to the web service:
 
 | Variable | Value |
 | --- | --- |
-| `RESEND_API_KEY` | API key created in the Resend dashboard |
-| `RESEND_FROM_EMAIL` | Optional verified sender address in Resend |
-| `DEFAULT_FROM_EMAIL` | Verified sender address in Resend, used when `RESEND_FROM_EMAIL` is absent |
+| `BREVO_API_KEY` | API key created in the Brevo dashboard |
+| `BREVO_FROM_EMAIL` | Optional approved sender address in Brevo |
+| `DEFAULT_FROM_EMAIL` | Approved sender address in Brevo, used when `BREVO_FROM_EMAIL` is absent |
 
-When `RESEND_API_KEY` is set, password-reset messages use the Resend HTTPS API.
-The sender must be a verified domain or address in Resend. Never commit API
-keys or put secret values in the README. `EMAIL_TIMEOUT` may optionally be set
-to a positive number of seconds (default `15`).
+When `BREVO_API_KEY` is set, password-reset messages use the Brevo HTTPS API.
+The sender must be an approved email address or domain in Brevo. Never commit
+API keys or put secret values in the README. `EMAIL_TIMEOUT` may optionally be
+set to a positive number of seconds (default `15`).
 
-Resend's Free plan currently includes 3,000 transactional emails per month,
-with a hard limit of 100 emails per day, up to 3 domains, ticket support, and
-30-day data retention. Messages can only be sent from verified senders.
-Resend may change plan limits; check the Resend dashboard before production
-use.
+Brevo's Free plan allows up to 300 emails per day. It includes Brevo branding
+and has no guaranteed delivery volume or dedicated IP. Messages can only be
+sent from approved senders. Plan limits and features may change, so check the
+Brevo dashboard before production use.

@@ -40,14 +40,14 @@ def _parse_csrf_origins(value):
 
 def _email_config(environ=None):
     environ = os.environ if environ is None else environ
-    api_key = environ.get("RESEND_API_KEY", "").strip()
+    api_key = environ.get("BREVO_API_KEY", "").strip()
     from_email = (
-        environ.get("RESEND_FROM_EMAIL", "").strip()
+        environ.get("BREVO_FROM_EMAIL", "").strip()
         or environ.get("DEFAULT_FROM_EMAIL", "").strip()
     )
     config = {
         "EMAIL_BACKEND": (
-            "catalog.email_backends.ResendEmailBackend"
+            "catalog.email_backends.BrevoEmailBackend"
             if api_key
             else "django.core.mail.backends.console.EmailBackend"
         ),
@@ -65,7 +65,7 @@ def _email_config(environ=None):
         config["EMAIL_TIMEOUT"] = parsed_timeout
 
     if api_key:
-        config["RESEND_API_KEY"] = api_key
+        config["BREVO_API_KEY"] = api_key
 
     return config
 
