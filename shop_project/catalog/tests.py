@@ -221,6 +221,12 @@ class PasswordResetTests(TestCase):
 
         self.assertContains(response, 'href="/accounts/password_reset/"')
 
+    def test_password_reset_complete_links_to_home_and_admin_login(self):
+        response = self.client.get("/accounts/reset/done/")
+
+        self.assertContains(response, 'href="/"')
+        self.assertContains(response, 'href="/admin/login/"')
+
     def test_admin_user_can_reset_password_without_revealing_unknown_email(self):
         response = self.client.post(
             "/accounts/password_reset/",
