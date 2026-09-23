@@ -38,6 +38,48 @@ def _parse_csrf_origins(value):
     return origins
 
 
+def _email_config(environ=None):
+    environ = os.environ if environ is None else environ
+    username = environ.get("EMAIL_HOST_USER", "").strip()
+    password = environ.get("EMAIL_HOST_PASSWORD", "").strip()
+    from_email = environ.get("DEFAULT_FROM_EMAIL", "").strip()
+    configured = bool(username or password)
+
+    if not configured:
+        return {
+            "EMAIL_BACKEND": "django.core.mail.backends.console.EmailBackend",
+            "DEFAULT_FROM_EMAIL": from_email or "webmaster@localhost",
+        }
+
+    if not username or not password:
+        raise ImproperlyConfigured(
+            "EMAIL_HOST_USER and EMAIL_HOST_PASSWORD must both be set "
+            "to enable Gmail SMTP."
+        )
+
+    config = {
+        "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "EMAIL_HOST": "smtp.gmail.com",
+        "EMAIL_PORT": 587,
+        "EMAIL_USE_TLS": True,
+        "EMAIL_HOST_USER": username,
+        "EMAIL_HOST_PASSWORD": password,
+        "DEFAULT_FROM_EMAIL": from_email or username,
+    }
+
+    timeout = environ.get("EMAIL_TIMEOUT", "").strip()
+    if timeout:
+        try:
+            parsed_timeout = int(timeout)
+        except ValueError as exc:
+            raise ImproperlyConfigured("EMAIL_TIMEOUT must be an integer.") from exc
+        if parsed_timeout <= 0:
+            raise ImproperlyConfigured("EMAIL_TIMEOUT must be greater than zero.")
+        config["EMAIL_TIMEOUT"] = parsed_timeout
+
+    return config
+
+
 def _cloudinary_storage_config(environ=None):
     environ = os.environ if environ is None else environ
     names = (
@@ -113,7 +155,7 @@ ROOT_URLCONF = "shop_project.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -144,6 +186,7 @@ def _database_config(database_url):
 
 
 DATABASES = {"default": _database_config(os.getenv("DATABASE_URL"))}
+globals().update(_email_config())
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

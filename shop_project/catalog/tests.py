@@ -2,10 +2,15 @@ import importlib
 from unittest.mock import patch
 
 from django.conf import settings
+from django.core import mail
 from django.core.exceptions import ImproperlyConfigured
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
-from shop_project.settings import _cloudinary_storage_config, _database_config
+from shop_project.settings import (
+    _cloudinary_storage_config,
+    _database_config,
+    _email_config,
+)
 
 from .models import ContactRequest, ProductImage
 
@@ -92,6 +97,116 @@ class CloudinaryConfigurationTests(TestCase):
         finally:
             settings.CLOUDINARY_STORAGE = original_storage
             settings.MEDIA_URL = original_media_url
+
+
+class EmailConfigurationTests(TestCase):
+    def test_missing_credentials_use_console_backend(self):
+        config = _email_config({})
+
+        self.assertEqual(
+            config,
+            {
+                "EMAIL_BACKEND": "django.core.mail.backends.console.EmailBackend",
+                "DEFAULT_FROM_EMAIL": "webmaster@localhost",
+            },
+        )
+
+    def test_gmail_credentials_enable_tls_smtp(self):
+        config = _email_config(
+            {
+                "EMAIL_HOST_USER": "admin@example.com",
+                "EMAIL_HOST_PASSWORD": "app-password",
+                "DEFAULT_FROM_EMAIL": "Website <admin@example.com>",
+                "EMAIL_TIMEOUT": "15",
+            }
+        )
+
+        self.assertEqual(
+            config,
+            {
+                "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+                "EMAIL_HOST": "smtp.gmail.com",
+                "EMAIL_PORT": 587,
+                "EMAIL_USE_TLS": True,
+                "EMAIL_HOST_USER": "admin@example.com",
+                "EMAIL_HOST_PASSWORD": "app-password",
+                "DEFAULT_FROM_EMAIL": "Website <admin@example.com>",
+                "EMAIL_TIMEOUT": 15,
+            },
+        )
+
+    def test_partial_credentials_fail_explicitly(self):
+        with self.assertRaises(ImproperlyConfigured):
+            _email_config({"EMAIL_HOST_USER": "admin@example.com"})
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class PasswordResetTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.user = get_user_model().objects.create_user(
+            username="admin",
+            email="admin@example.com",
+            password="Old-password-123",
+            is_staff=True,
+            is_superuser=True,
+        )
+
+    def test_password_reset_pages_are_available(self):
+        for path in (
+            "/accounts/password_reset/",
+            "/accounts/password_reset/done/",
+            "/accounts/reset/invalid/invalid-token/",
+            "/accounts/reset/done/",
+        ):
+            self.assertEqual(self.client.get(path).status_code, 200)
+
+    def test_admin_login_links_to_password_reset(self):
+        response = self.client.get("/admin/login/")
+
+        self.assertContains(response, 'href="/accounts/password_reset/"')
+
+    def test_admin_user_can_reset_password_without_revealing_unknown_email(self):
+        response = self.client.post(
+            "/accounts/password_reset/",
+            {"email": self.user.email},
+        )
+
+        self.assertRedirects(response, "/accounts/password_reset/done/")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("palavra-passe", mail.outbox[0].subject.lower())
+        self.assertIn("/accounts/reset/", mail.outbox[0].body)
+
+        mail.outbox.clear()
+        unknown_response = self.client.post(
+            "/accounts/password_reset/",
+            {"email": "nobody@example.com"},
+        )
+
+        self.assertRedirects(unknown_response, "/accounts/password_reset/done/")
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_reset_link_changes_admin_password(self):
+        self.client.post("/accounts/password_reset/", {"email": self.user.email})
+        reset_url = next(
+            line.strip()
+            for line in mail.outbox[0].body.splitlines()
+            if "/accounts/reset/" in line
+        )
+        response = self.client.get(reset_url, follow=True)
+        self.assertEqual(response.status_code, 200)
+        response = self.client.post(
+            response.request["PATH_INFO"],
+            {
+                "new_password1": "New-password-456",
+                "new_password2": "New-password-456",
+            },
+        )
+
+        self.assertRedirects(response, "/accounts/reset/done/")
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("New-password-456"))
 
 
 class SubmitContactTests(TestCase):

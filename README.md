@@ -17,6 +17,7 @@ about orders, quotes, or custom work.
 - Contact form for quote requests, orders, and custom products.
 - Django administration for managing products, product images, and contact
   requests.
+- Password recovery for admin users through Django's standard reset flow.
 - About section describing the design and 3D-printing focus.
 - Animated 3D Benchy demonstration powered by Three.js.
 
@@ -43,3 +44,24 @@ Use this Build Command for the Render web service:
 ```text
 pip install -r shop_project/requirements.txt && python shop_project/manage.py migrate && python shop_project/manage.py collectstatic --noinput
 ```
+
+### Admin password recovery with Gmail
+
+The reset flow is available at `/accounts/password_reset/` and is also linked
+from the Django admin login. Without email credentials, local development uses
+Django's console email backend. To send real email on Render, add these
+environment variables to the web service:
+
+| Variable | Value |
+| --- | --- |
+| `EMAIL_HOST_USER` | The Gmail address used to send reset messages |
+| `EMAIL_HOST_PASSWORD` | A Gmail App Password (not the normal account password) |
+| `DEFAULT_FROM_EMAIL` | The sender address, usually the same Gmail address |
+| `EMAIL_TIMEOUT` | Optional positive timeout in seconds, for example `15` |
+
+The application uses Gmail SMTP with `smtp.gmail.com`, port `587`, and TLS
+only when both `EMAIL_HOST_USER` and `EMAIL_HOST_PASSWORD` are configured.
+Never commit these values or put them in the README. Gmail requires two-step
+verification before an App Password can be created, and Google may enforce
+account sending limits or block suspicious sign-ins. The sender must be
+permitted by the Gmail account; consumer Gmail also has daily sending limits.
