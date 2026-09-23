@@ -68,7 +68,9 @@ class CloudinaryConfigurationTests(TestCase):
             "API_SECRET": "test-secret",
             "PREFIX": "",
         }
-        settings.MEDIA_URL = ""
+        settings.MEDIA_URL = (
+            "https://res.cloudinary.com/test-cloud/image/upload/"
+        )
         try:
             storage_module = importlib.import_module("cloudinary_storage.storage")
             storage = storage_module.MediaCloudinaryStorage()
