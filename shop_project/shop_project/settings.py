@@ -40,31 +40,18 @@ def _parse_csrf_origins(value):
 
 def _email_config(environ=None):
     environ = os.environ if environ is None else environ
-    username = environ.get("EMAIL_HOST_USER", "").strip()
-    password = environ.get("EMAIL_HOST_PASSWORD", "").strip()
-    from_email = environ.get("DEFAULT_FROM_EMAIL", "").strip()
-    configured = bool(username or password)
-
-    if not configured:
-        return {
-            "EMAIL_BACKEND": "django.core.mail.backends.console.EmailBackend",
-            "DEFAULT_FROM_EMAIL": from_email or "webmaster@localhost",
-        }
-
-    if not username or not password:
-        raise ImproperlyConfigured(
-            "EMAIL_HOST_USER and EMAIL_HOST_PASSWORD must both be set "
-            "to enable Gmail SMTP."
-        )
-
+    api_key = environ.get("RESEND_API_KEY", "").strip()
+    from_email = (
+        environ.get("RESEND_FROM_EMAIL", "").strip()
+        or environ.get("DEFAULT_FROM_EMAIL", "").strip()
+    )
     config = {
-        "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
-        "EMAIL_HOST": "smtp.gmail.com",
-        "EMAIL_PORT": 587,
-        "EMAIL_USE_TLS": True,
-        "EMAIL_HOST_USER": username,
-        "EMAIL_HOST_PASSWORD": password,
-        "DEFAULT_FROM_EMAIL": from_email or username,
+        "EMAIL_BACKEND": (
+            "catalog.email_backends.ResendEmailBackend"
+            if api_key
+            else "django.core.mail.backends.console.EmailBackend"
+        ),
+        "DEFAULT_FROM_EMAIL": from_email or "webmaster@localhost",
     }
 
     timeout = environ.get("EMAIL_TIMEOUT", "").strip()
@@ -76,6 +63,9 @@ def _email_config(environ=None):
         if parsed_timeout <= 0:
             raise ImproperlyConfigured("EMAIL_TIMEOUT must be greater than zero.")
         config["EMAIL_TIMEOUT"] = parsed_timeout
+
+    if api_key:
+        config["RESEND_API_KEY"] = api_key
 
     return config
 

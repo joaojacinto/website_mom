@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.core import mail
+from django.core.mail import EmailMultiAlternatives
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase, override_settings
 
@@ -12,6 +13,7 @@ from shop_project.settings import (
     _email_config,
 )
 
+from .email_backends import ResendEmailBackend, ResendEmailError
 from .models import ContactRequest, ProductImage
 
 
@@ -111,12 +113,11 @@ class EmailConfigurationTests(TestCase):
             },
         )
 
-    def test_gmail_credentials_enable_tls_smtp(self):
+    def test_resend_api_key_enables_resend_backend(self):
         config = _email_config(
             {
-                "EMAIL_HOST_USER": "admin@example.com",
-                "EMAIL_HOST_PASSWORD": "app-password",
-                "DEFAULT_FROM_EMAIL": "Website <admin@example.com>",
+                "RESEND_API_KEY": "re_test_key",
+                "RESEND_FROM_EMAIL": "Website <admin@example.com>",
                 "EMAIL_TIMEOUT": "15",
             }
         )
@@ -124,20 +125,72 @@ class EmailConfigurationTests(TestCase):
         self.assertEqual(
             config,
             {
-                "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
-                "EMAIL_HOST": "smtp.gmail.com",
-                "EMAIL_PORT": 587,
-                "EMAIL_USE_TLS": True,
-                "EMAIL_HOST_USER": "admin@example.com",
-                "EMAIL_HOST_PASSWORD": "app-password",
+                "EMAIL_BACKEND": "catalog.email_backends.ResendEmailBackend",
+                "RESEND_API_KEY": "re_test_key",
                 "DEFAULT_FROM_EMAIL": "Website <admin@example.com>",
                 "EMAIL_TIMEOUT": 15,
             },
         )
 
-    def test_partial_credentials_fail_explicitly(self):
-        with self.assertRaises(ImproperlyConfigured):
-            _email_config({"EMAIL_HOST_USER": "admin@example.com"})
+    def test_resend_from_email_takes_precedence_over_default_from_email(self):
+        config = _email_config(
+            {
+                "RESEND_API_KEY": "re_test_key",
+                "RESEND_FROM_EMAIL": "resend@example.com",
+                "DEFAULT_FROM_EMAIL": "default@example.com",
+            }
+        )
+
+        self.assertEqual(config["DEFAULT_FROM_EMAIL"], "resend@example.com")
+
+
+@override_settings(
+    RESEND_API_KEY="re_test_key",
+    DEFAULT_FROM_EMAIL="verified@example.com",
+    EMAIL_TIMEOUT=15,
+)
+class ResendEmailBackendTests(TestCase):
+    @patch("catalog.email_backends.requests.post")
+    def test_email_message_is_sent_as_resend_payload(self, post):
+        post.return_value.status_code = 200
+        message = EmailMultiAlternatives(
+            "Reset subject",
+            "Reset body",
+            "verified@example.com",
+            ["admin@example.com"],
+        )
+        message.attach_alternative("<p>Reset body</p>", "text/html")
+
+        sent = ResendEmailBackend().send_messages([message])
+
+        self.assertEqual(sent, 1)
+        post.assert_called_once_with(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": "Bearer re_test_key",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": "verified@example.com",
+                "to": ["admin@example.com"],
+                "subject": "Reset subject",
+                "text": "Reset body",
+                "html": "<p>Reset body</p>",
+            },
+            timeout=15,
+        )
+
+    @patch("catalog.email_backends.requests.post")
+    def test_non_success_response_raises_without_exposing_api_key(self, post):
+        post.return_value.status_code = 401
+        message = EmailMultiAlternatives(
+            "Reset subject", "Reset body", to=["admin@example.com"]
+        )
+
+        with self.assertRaisesRegex(ResendEmailError, "HTTP 401") as raised:
+            ResendEmailBackend().send_messages([message])
+
+        self.assertNotIn("re_test_key", str(raised.exception))
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
