@@ -8,7 +8,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase
 
-from shop_project.settings import _database_config
+from shop_project.settings import _cloudinary_storage_config, _database_config
 
 from .models import ContactRequest
 
@@ -28,6 +28,33 @@ class DatabaseConfigurationTests(TestCase):
     def test_invalid_database_url_fails_explicitly(self):
         with self.assertRaises(ImproperlyConfigured):
             _database_config("not-a-database-url")
+
+
+class CloudinaryConfigurationTests(TestCase):
+    def test_missing_credentials_keep_local_storage_unconfigured(self):
+        self.assertIsNone(_cloudinary_storage_config({}))
+
+    def test_complete_credentials_return_cloudinary_configuration(self):
+        config = _cloudinary_storage_config(
+            {
+                "CLOUDINARY_CLOUD_NAME": "test-cloud",
+                "CLOUDINARY_API_KEY": "test-key",
+                "CLOUDINARY_API_SECRET": "test-secret",
+            }
+        )
+
+        self.assertEqual(
+            config,
+            {
+                "CLOUD_NAME": "test-cloud",
+                "API_KEY": "test-key",
+                "API_SECRET": "test-secret",
+            },
+        )
+
+    def test_partial_credentials_fail_explicitly(self):
+        with self.assertRaises(ImproperlyConfigured):
+            _cloudinary_storage_config({"CLOUDINARY_CLOUD_NAME": "test-cloud"})
 
 
 class EnsureAdminCommandTests(TestCase):

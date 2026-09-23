@@ -38,6 +38,34 @@ def _parse_csrf_origins(value):
     return origins
 
 
+def _cloudinary_storage_config(environ=None):
+    environ = os.environ if environ is None else environ
+    names = (
+        "CLOUDINARY_CLOUD_NAME",
+        "CLOUDINARY_API_KEY",
+        "CLOUDINARY_API_SECRET",
+    )
+    values = {name: environ.get(name, "").strip() for name in names}
+    configured = any(values.values())
+    if not configured:
+        return None
+
+    missing = [name for name, value in values.items() if not value]
+    if missing:
+        raise ImproperlyConfigured(
+            "Cloudinary configuration is incomplete; set "
+            + ", ".join(names)
+            + ". Missing: "
+            + ", ".join(missing)
+        )
+
+    return {
+        "CLOUD_NAME": values["CLOUDINARY_CLOUD_NAME"],
+        "API_KEY": values["CLOUDINARY_API_KEY"],
+        "API_SECRET": values["CLOUDINARY_API_SECRET"],
+    }
+
+
 DEBUG = _parse_bool(os.getenv("DJANGO_DEBUG"), True)
 
 configured_secret_key = os.getenv("DJANGO_SECRET_KEY")
@@ -128,9 +156,33 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+WHITENOISE_MANIFEST_STRICT = False
+CLOUDINARY_STORAGE = _cloudinary_storage_config()
 
-MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
+            if DEBUG
+            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        ),
+    },
+}
+
+if CLOUDINARY_STORAGE:
+    INSTALLED_APPS.append("cloudinary_storage")
+    STORAGES["default"] = {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    }
+    MEDIA_URL = (
+        f"https://res.cloudinary.com/{CLOUDINARY_STORAGE['CLOUD_NAME']}/"
+        "image/upload/"
+    )
+else:
+    STORAGES["default"] = {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    }
+    MEDIA_URL = "media/"
+    MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
