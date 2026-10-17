@@ -36,34 +36,3 @@ about orders, quotes, or custom work.
 The Django application is located in `shop_project/`. The root
 `index.html` and `styles.css` contain the original static interface, while the
 integrated catalogue is implemented in `shop_project/catalog/`.
-
-## Render deployment
-
-Use this Build Command for the Render web service:
-
-```text
-pip install -r shop_project/requirements.txt && python shop_project/manage.py migrate && python shop_project/manage.py collectstatic --noinput
-```
-
-### Admin password recovery with Brevo
-
-The reset flow is available at `/accounts/password_reset/` and is also linked
-from the Django admin login. Without an API key, local development uses
-Django's console email backend. To send real email on Render, add these
-environment variables to the web service:
-
-| Variable | Value |
-| --- | --- |
-| `BREVO_API_KEY` | API key created in the Brevo dashboard |
-| `BREVO_FROM_EMAIL` | Optional approved sender address in Brevo |
-| `DEFAULT_FROM_EMAIL` | Approved sender address in Brevo, used when `BREVO_FROM_EMAIL` is absent |
-
-When `BREVO_API_KEY` is set, password-reset messages use the Brevo HTTPS API.
-The sender must be an approved email address or domain in Brevo. Never commit
-API keys or put secret values in the README. `EMAIL_TIMEOUT` may optionally be
-set to a positive number of seconds (default `15`).
-
-Brevo's Free plan allows up to 300 emails per day. It includes Brevo branding
-and has no guaranteed delivery volume or dedicated IP. Messages can only be
-sent from approved senders. Plan limits and features may change, so check the
-Brevo dashboard before production use.
